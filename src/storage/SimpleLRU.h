@@ -24,7 +24,7 @@ public:
         _lru_index.clear();
         //_lru_head.reset(); // TODO: Here is stack overflow
 	while (_lru_head.get()) {
-            _lru_head = std::unique_ptr(_lru_head->next);
+            _lru_head = std::move(_lru_head->next);
         }
     }
 

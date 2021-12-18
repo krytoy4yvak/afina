@@ -115,7 +115,7 @@ bool SimpleLRU::Put(const std::string &key, const std::string &value) {
 		return add_node(key, value);	
 	}
         lru_node & node = map_iter->second.get();
-	go_head(& node);
+	go_head(node);
 	std::size_t old_len = node.value.length();
 	std::size_t new_len = value.length();
 	clear_space(old_len, new_len);
