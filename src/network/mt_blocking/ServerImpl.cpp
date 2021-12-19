@@ -192,7 +192,7 @@ void ServerImpl::worker(int client_socket) {
 		sockets.erase(client_socket);
 		close(client_socket);
                 if (!running.load() && sockets.empty()) {
-			cv.notify_all();	
+			cv.notify_one();	
 	        }
 				
 	}
@@ -257,7 +257,7 @@ void ServerImpl::OnRun() {
 	sockets.erase(_server_socket);
 	close(_server_socket);
         if (!running.load() && sockets.empty()) {
-		cv.notify_all();	
+		cv.notify_one();	
 	}
     }	  
 
