@@ -240,7 +240,7 @@ void ServerImpl::OnRun() {
 
 	{ 
 		std::unique_lock<std::mutex> lock(server_mutex);
-		if (sockets.size() >= MAX_THREADS) {
+		if ((sockets.size() >= MAX_THREADS) and (running == true)) {
 			_logger->warn("Too many clients are working with network now");
 			close(client_socket);
 		}
