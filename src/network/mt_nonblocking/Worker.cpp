@@ -21,21 +21,18 @@ namespace Network {
 namespace MTnonblock {
 
 // See Worker.h
-Worker::Worker(std::shared_ptr<Afina::Storage> ps, std::shared_ptr<Afina::Logging::Service> pl, ServerImpl * server)
-    : _pStorage(ps), _pLogging(pl), isRunning(false), _epoll_fd(-1), _server(server) {
+Worker::Worker(std::shared_ptr<Afina::Storage> ps, std::shared_ptr<Afina::Logging::Service> pl)
+    : _pStorage(ps), _pLogging(pl), isRunning(false), _epoll_fd(-1) {
     // TODO: implementation here
 }
 
 // See Worker.h
 Worker::~Worker() {
-    Stop();
-    Join();
+    // TODO: implementation here
 }
 
 // See Worker.h
-Worker::Worker(Worker &&other) { 
-    *this = std::move(other); 
-}
+Worker::Worker(Worker &&other) { *this = std::move(other); }
 
 // See Worker.h
 Worker &Worker::operator=(Worker &&other) {
@@ -43,7 +40,6 @@ Worker &Worker::operator=(Worker &&other) {
     _pLogging = std::move(other._pLogging);
     _logger = std::move(other._logger);
     _thread = std::move(other._thread);
-    _server = std::move(other._server);
     _epoll_fd = other._epoll_fd;
 
     other._epoll_fd = -1;
@@ -61,15 +57,12 @@ void Worker::Start(int epoll_fd) {
 }
 
 // See Worker.h
-void Worker::Stop() { 
-    isRunning = false; 
-}
+void Worker::Stop() { isRunning = false; }
 
 // See Worker.h
 void Worker::Join() {
-    if (_thread.joinable()) {
-         _thread.join();
-    }
+    assert(_thread.joinable());
+    _thread.join();
 }
 
 // See Worker.h
@@ -123,12 +116,7 @@ void Worker::OnRun() {
                 int epoll_ctl_retval;
                 if ((epoll_ctl_retval = epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, pconn->_socket, &pconn->_event))) {
                     _logger->debug("epoll_ctl failed during connection rearm: error {}", epoll_ctl_retval);
-                    close(pconn->_socket);
                     pconn->OnError();
-                    {
-                            std::unique_lock<std::mutex>  lock(_server->_mutex);
-                            _server->sockets.erase(pconn);
-                    }
                     delete pconn;
                 }
             }
@@ -136,12 +124,6 @@ void Worker::OnRun() {
             else {
                 if (epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, pconn->_socket, &pconn->_event)) {
                     std::cerr << "Failed to delete connection!" << std::endl;
-                }
-                close(pconn->_socket);
-                pconn->OnError();
-                {
-                        std::unique_lock<std::mutex>  lock(_server->_mutex);
-                        _server->sockets.erase(pconn);
                 }
                 delete pconn;
             }
