@@ -57,7 +57,7 @@ bool SimpleLRU::add_node(const std::string &key, const std::string &value) {
         clear_space(0, size);
         add_elem(key, value);
     }
-    std::cout << "curr_size " << _cur_size << "key_size " << key.length() << "value_size " << value.length() << std::endl;
+    //std::cout << "curr_size " << _cur_size << "key_size " << key.length() << "value_size " << value.length() << std::endl;
     return true;
 }
 
