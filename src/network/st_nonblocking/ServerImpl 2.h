@@ -1,11 +1,8 @@
-#ifndef AFINA_NETWORK_MT_NONBLOCKING_SERVER_H
-#define AFINA_NETWORK_MT_NONBLOCKING_SERVER_H
+#ifndef AFINA_NETWORK_ST_NONBLOCKING_SERVER_H
+#define AFINA_NETWORK_ST_NONBLOCKING_SERVER_H
 
 #include <thread>
 #include <vector>
-#include <set>
-#include <mutex>
-#include "Connection.h"
 
 #include <afina/network/Server.h>
 
@@ -15,7 +12,7 @@ class logger;
 
 namespace Afina {
 namespace Network {
-namespace MTnonblock {
+namespace STnonblock {
 
 // Forward declaration, see Worker.h
 class Worker;
@@ -40,7 +37,7 @@ public:
 
 protected:
     void OnRun();
-    void OnNewConnection();
+    void OnNewConnection(int);
 
 private:
     // logger to use
@@ -54,29 +51,15 @@ private:
     // Socket to accept new connection on, shared between acceptors
     int _server_socket;
 
-    // Threads that accepts new connections, each has private epoll instance
-    // but share global server socket
-    std::vector<std::thread> _acceptors;
-
-    // EPOLL instance shared between workers
-    int _data_epoll_fd;
-
     // Curstom event "device" used to wakeup workers
     int _event_fd;
 
-    // threads serving read/write requests
-    std::vector<Worker> _workers;
-
-    friend class Worker;
-
-    std::set<Connection *> sockets;
-
-    std::mutex _mutex;
-
+    // IO thread
+    std::thread _work_thread;
 };
 
-} // namespace MTnonblock
+} // namespace STnonblock
 } // namespace Network
 } // namespace Afina
 
-#endif // AFINA_NETWORK_MT_NONBLOCKING_SERVER_H
+#endif // AFINA_NETWORK_ST_NONBLOCKING_SERVER_H
