@@ -150,6 +150,7 @@ void ServerImpl::Join() {
         Connection * p = *iter;
         shutdown(p->_socket, SHUT_RD);
         delete p;
+        close(p->_socket);
     } 
 }
 
