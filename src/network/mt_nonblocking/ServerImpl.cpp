@@ -149,6 +149,7 @@ void ServerImpl::Join() {
     for (;iter != sockets.end() ; ++iter) {
         Connection * p = *iter;
         shutdown(p->_socket, SHUT_RD);
+        delete p;
     } 
 }
 
