@@ -21,7 +21,6 @@
 #include <afina/Storage.h>
 #include <afina/logging/Service.h>
 
-#include "Connection.h"
 #include "Utils.h"
 #include "Worker.h"
 
@@ -33,7 +32,10 @@ namespace MTnonblock {
 ServerImpl::ServerImpl(std::shared_ptr<Afina::Storage> ps, std::shared_ptr<Logging::Service> pl) : Server(ps, pl) {}
 
 // See Server.h
-ServerImpl::~ServerImpl() {}
+ServerImpl::~ServerImpl() {
+    Stop();
+    Join();
+}
 
 // See Server.h
 void ServerImpl::Start(uint16_t port, uint32_t n_acceptors, uint32_t n_workers) {
@@ -96,7 +98,7 @@ void ServerImpl::Start(uint16_t port, uint32_t n_acceptors, uint32_t n_workers) 
 
     _workers.reserve(n_workers);
     for (int i = 0; i < n_workers; i++) {
-        _workers.emplace_back(pStorage, pLogging);
+        _workers.emplace_back(pStorage, pLogging,this);
         _workers.back().Start(_data_epoll_fd);
     }
 
@@ -119,17 +121,35 @@ void ServerImpl::Stop() {
     if (eventfd_write(_event_fd, 1)) {
         throw std::runtime_error("Failed to wakeup workers");
     }
+    {
+         std::unique_lock<std::mutex> lock(_mutex);
+         auto iter = sockets.begin();
+         for (;iter != sockets.end() ; ++iter) {
+            Connection * p = *iter;
+            shutdown(p->_socket, SHUT_RD);
+         }
+    }
+    shutdown(_server_socket, SHUT_RD);
 }
 
 // See Server.h
 void ServerImpl::Join() {
     for (auto &t : _acceptors) {
-        t.join();
+            if (t.joinable()) {
+                t.join();
+            }
     }
 
-    for (auto &w : _workers) {
-        w.Join();
+    for (auto &w : _workers) { 
+            w.Join();
     }
+    
+
+    auto iter = sockets.begin();
+    for (;iter != sockets.end() ; ++iter) {
+        Connection * p = *iter;
+        shutdown(p->_socket, SHUT_RD);
+    } 
 }
 
 // See ServerImpl.h
@@ -193,11 +213,10 @@ void ServerImpl::OnRun() {
                 }
 
                 // Register the new FD to be monitored by epoll.
-                Connection *pc = new Connection(infd);
+                Connection *pc = new(std::nothrow) Connection(infd, _logger, pStorage);
                 if (pc == nullptr) {
                     throw std::runtime_error("Failed to allocate connection");
                 }
-
                 // Register connection in worker's epoll
                 pc->Start();
                 if (pc->isAlive()) {
@@ -206,7 +225,12 @@ void ServerImpl::OnRun() {
                     if ((epoll_ctl_retval = epoll_ctl(_data_epoll_fd, EPOLL_CTL_ADD, pc->_socket, &pc->_event))) {
                         _logger->debug("epoll_ctl failed during connection register in workers'epoll: error {}", epoll_ctl_retval);
                         pc->OnError();
+                        close(pc->_socket);
                         delete pc;
+                    }
+                    else {
+                            std::unique_lock<std::mutex> lock(_mutex);
+                            sockets.emplace(pc);
                     }
                 }
             }
